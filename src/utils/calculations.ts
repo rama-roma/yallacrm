@@ -44,8 +44,13 @@ export const getScenarioVolume = (data: CalculatorData, scenario: ScenarioKey) =
 export const getIngredientScenarioPrice = (data: CalculatorData, ingredientId: string, scenario: ScenarioKey) => {
   const ingredient = data.ingredients.find((item) => item.id === ingredientId);
   if (!ingredient) return 0;
-  if (scenario === 'current') return ingredient.priceNow;
-  return ingredient.volumePrices[scenario] || ingredient.priceNow;
+  if (scenario === 'current') {
+    return ingredient.baseAmount > 0 ? ingredient.baseTotal / ingredient.baseAmount : ingredient.priceNow;
+  }
+
+  const amount = ingredient.volumeAmounts[scenario] ?? 0;
+  const total = ingredient.volumeTotals[scenario] ?? 0;
+  return amount > 0 ? total / amount : ingredient.volumePrices[scenario] || ingredient.priceNow;
 };
 
 export const getDishCost = (data: CalculatorData, dishId: string, scenario: ScenarioKey) => {

@@ -17,6 +17,10 @@ export interface Ingredient {
   id: string;
   name: string;
   unit: string;
+  baseAmount: number;
+  volumeAmounts: VolumePrices;
+  baseTotal: number;
+  volumeTotals: VolumePrices;
   priceNow: number;
   volumePrices: VolumePrices;
   priceBulk?: number;
@@ -203,16 +207,38 @@ const normalizeIngredient = (item: unknown): Ingredient => {
   const ingredient = asRecord(item);
   const legacyBulk = asNumber(ingredient.priceBulk ?? ingredient.ценаОптом);
   const volumePrices = asRecord(ingredient.volumePrices);
+  const volumeAmounts = asRecord(ingredient.volumeAmounts);
+  const baseAmount = Math.max(0, asNumber(ingredient.baseAmount ?? ingredient.amount ?? ingredient.количество, 1));
+  const priceNow = asNumber(ingredient.priceNow ?? ingredient.ценаСейчас);
+  const s1Price = asNumber(volumePrices.s1 ?? ingredient.priceS1 ?? ingredient.цена30, legacyBulk);
+  const s2Price = asNumber(volumePrices.s2 ?? ingredient.priceS2 ?? ingredient.цена70, legacyBulk);
+  const s3Price = asNumber(volumePrices.s3 ?? ingredient.priceS3 ?? ingredient.цена150, legacyBulk);
+  const s1Amount = Math.max(0, asNumber(volumeAmounts.s1 ?? ingredient.amountS1 ?? ingredient.количество30, baseAmount));
+  const s2Amount = Math.max(0, asNumber(volumeAmounts.s2 ?? ingredient.amountS2 ?? ingredient.количество70, baseAmount));
+  const s3Amount = Math.max(0, asNumber(volumeAmounts.s3 ?? ingredient.amountS3 ?? ingredient.количество150, baseAmount));
+  const volumeTotals = asRecord(ingredient.volumeTotals);
 
   return {
     id: asString(ingredient.id ?? ingredient.ид, crypto.randomUUID()),
     name: asString(ingredient.name ?? ingredient.название),
     unit: asString(ingredient.unit ?? ingredient.единица, 'кг'),
-    priceNow: asNumber(ingredient.priceNow ?? ingredient.ценаСейчас),
+    baseAmount,
+    volumeAmounts: {
+      s1: s1Amount,
+      s2: s2Amount,
+      s3: s3Amount
+    },
+    baseTotal: Math.max(0, asNumber(ingredient.baseTotal ?? ingredient.totalNow ?? ingredient.суммаСейчас, baseAmount * priceNow)),
+    volumeTotals: {
+      s1: Math.max(0, asNumber(volumeTotals.s1 ?? ingredient.totalS1 ?? ingredient.сумма30, s1Amount * s1Price)),
+      s2: Math.max(0, asNumber(volumeTotals.s2 ?? ingredient.totalS2 ?? ingredient.сумма70, s2Amount * s2Price)),
+      s3: Math.max(0, asNumber(volumeTotals.s3 ?? ingredient.totalS3 ?? ingredient.сумма150, s3Amount * s3Price))
+    },
+    priceNow,
     volumePrices: {
-      s1: asNumber(volumePrices.s1 ?? ingredient.priceS1 ?? ingredient.цена30, legacyBulk),
-      s2: asNumber(volumePrices.s2 ?? ingredient.priceS2 ?? ingredient.цена70, legacyBulk),
-      s3: asNumber(volumePrices.s3 ?? ingredient.priceS3 ?? ingredient.цена150, legacyBulk)
+      s1: s1Price,
+      s2: s2Price,
+      s3: s3Price
     }
   };
 };
@@ -326,6 +352,14 @@ export const toRussianCalculatorData = (data: CalculatorData) => ({
     ид: ingredient.id,
     название: ingredient.name,
     единица: ingredient.unit,
+    количество: ingredient.baseAmount,
+    количество30: ingredient.volumeAmounts.s1,
+    количество70: ingredient.volumeAmounts.s2,
+    количество150: ingredient.volumeAmounts.s3,
+    суммаСейчас: ingredient.baseTotal,
+    сумма30: ingredient.volumeTotals.s1,
+    сумма70: ingredient.volumeTotals.s2,
+    сумма150: ingredient.volumeTotals.s3,
     ценаСейчас: ingredient.priceNow,
     цена30: ingredient.volumePrices.s1,
     цена70: ingredient.volumePrices.s2,

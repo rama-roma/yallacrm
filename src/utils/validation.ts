@@ -69,7 +69,7 @@ export const validateCalculatorData = (data: CalculatorData): ValidationIssue[] 
         severity: 'error',
         section: 'Ингредиенты',
         title: `Нет текущей цены: ${label}`,
-        description: 'Цена СЕЙЧАС должна быть больше нуля, иначе текущий фудкост будет занижен.'
+        description: 'Заполните закупку и сумму сейчас, чтобы цена за 1 единицу была больше нуля.'
       });
     }
 
@@ -79,7 +79,37 @@ export const validateCalculatorData = (data: CalculatorData): ValidationIssue[] 
         severity: 'error',
         section: 'Ступенчатые цены',
         title: `Не заполнены цены по объемам: ${label}`,
-        description: 'Заполните цены для сценариев +30, +70 и +150, иначе сценарии будут считаться некорректно.'
+        description: 'Заполните закупку и сумму для сценариев +30, +70 и +150, иначе сценарии будут считаться некорректно.'
+      });
+    }
+
+    if (
+      ingredient.baseAmount <= 0 ||
+      ingredient.volumeAmounts.s1 <= 0 ||
+      ingredient.volumeAmounts.s2 <= 0 ||
+      ingredient.volumeAmounts.s3 <= 0
+    ) {
+      pushIssue({
+        id: `ingredient-${ingredient.id}-volume-amounts`,
+        severity: 'error',
+        section: 'Количество ингредиентов',
+        title: `Не заполнены количества по сценариям: ${label}`,
+        description: 'Заполните количество сейчас, +30, +70 и +150, иначе суммы блюда и аналитика будут считаться некорректно.'
+      });
+    }
+
+    if (
+      ingredient.baseTotal <= 0 ||
+      ingredient.volumeTotals.s1 <= 0 ||
+      ingredient.volumeTotals.s2 <= 0 ||
+      ingredient.volumeTotals.s3 <= 0
+    ) {
+      pushIssue({
+        id: `ingredient-${ingredient.id}-purchase-totals`,
+        severity: 'error',
+        section: 'Суммы закупки',
+        title: `Не заполнены суммы закупки по сценариям: ${label}`,
+        description: 'Заполните итоговую сумму закупки сейчас, +30, +70 и +150. Цена за 1 единицу считается из суммы и количества.'
       });
     }
 
@@ -253,9 +283,9 @@ export const validateCalculatorData = (data: CalculatorData): ValidationIssue[] 
       pushIssue({
         id: `combo-${combo.id}-sales-mix-empty`,
         severity: 'error',
-        section: 'Sales Mix',
+        section: 'Доли продаж',
         title: `Не указана доля продаж: ${label}`,
-        description: 'Для активного комбо укажите Sales Mix в процентах.'
+        description: 'Для активного комбо укажите долю продаж в процентах.'
       });
     }
   });
@@ -265,8 +295,8 @@ export const validateCalculatorData = (data: CalculatorData): ValidationIssue[] 
     pushIssue({
       id: 'sales-mix-total-invalid',
       severity: 'error',
-      section: 'Sales Mix',
-      title: 'Сумма Sales Mix не равна 100%',
+      section: 'Доли продаж',
+      title: 'Сумма долей продаж не равна 100%',
       description: `Сейчас сумма активных комбо равна ${salesMixTotal.toFixed(1)}%. Исправьте доли перед аналитикой.`
     });
   }

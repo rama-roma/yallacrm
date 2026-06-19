@@ -72,10 +72,18 @@ export const exportXLSX = (state: CalculatorData, filename: string) => {
     ID: i.id,
     Название: i.name,
     Единица: i.unit,
-    'Цена сейчас': i.priceNow,
-    'Цена +30': i.volumePrices.s1,
-    'Цена +70': i.volumePrices.s2,
-    'Цена +150': i.volumePrices.s3
+    'Закупка сейчас': i.baseAmount,
+    'Сумма сейчас': i.baseTotal,
+    'Цена за 1 сейчас': i.baseAmount > 0 ? i.baseTotal / i.baseAmount : 0,
+    'Закупка +30': i.volumeAmounts.s1,
+    'Сумма +30': i.volumeTotals.s1,
+    'Цена за 1 +30': i.volumeAmounts.s1 > 0 ? i.volumeTotals.s1 / i.volumeAmounts.s1 : 0,
+    'Закупка +70': i.volumeAmounts.s2,
+    'Сумма +70': i.volumeTotals.s2,
+    'Цена за 1 +70': i.volumeAmounts.s2 > 0 ? i.volumeTotals.s2 / i.volumeAmounts.s2 : 0,
+    'Закупка +150': i.volumeAmounts.s3,
+    'Сумма +150': i.volumeTotals.s3,
+    'Цена за 1 +150': i.volumeAmounts.s3 > 0 ? i.volumeTotals.s3 / i.volumeAmounts.s3 : 0
   })), 'Ингредиенты');
 
   appendJsonSheet(wb, state.dishes.map((d) => ({
@@ -93,7 +101,7 @@ export const exportXLSX = (state: CalculatorData, filename: string) => {
     Блюда: c.dishIds.join('; '),
     Упаковка: c.packagingCost,
     'Цена продажи': c.price,
-    'Sales Mix %': c.salesMix
+    'Доля продаж %': c.salesMix
   })), 'Комбо');
 
   appendJsonSheet(wb, state.calendar.map((day) => ({
