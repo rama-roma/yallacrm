@@ -14,7 +14,7 @@ export default function IngredientsTab() {
       name: '',
       unit: 'кг',
       priceNow: 0,
-      priceBulk: 0
+      volumePrices: { s1: 0, s2: 0, s3: 0 }
     });
     setEditingId(newId);
   };
@@ -24,7 +24,7 @@ export default function IngredientsTab() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-xl font-bold text-gray-900">01 Ингредиенты</h2>
-          <p className="text-sm text-gray-500">Справочник продуктов и закупочных цен</p>
+          <p className="text-sm text-gray-500">Справочник продуктов и ступенчатых закупочных цен</p>
         </div>
         <button 
           onClick={handleAdd}
@@ -42,21 +42,18 @@ export default function IngredientsTab() {
               <th className="py-3 px-4 rounded-tl-lg">Название</th>
               <th className="py-3 px-4">Ед. изм.</th>
               <th className="py-3 px-4">Цена СЕЙЧАС (TJS)</th>
-              <th className="py-3 px-4">Цена ОПТОМ (TJS)</th>
-              <th className="py-3 px-4">Экономия (%)</th>
+              <th className="py-3 px-4">Цена при объеме +30</th>
+              <th className="py-3 px-4">Цена при объеме +70</th>
+              <th className="py-3 px-4">Цена при объеме +150</th>
               <th className="py-3 px-4 rounded-tr-lg w-24 text-right">Действия</th>
             </tr>
           </thead>
           <tbody>
             {ingredients.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-8 text-gray-400">Нет добавленных ингредиентов</td>
+                <td colSpan={7} className="text-center py-8 text-gray-400">Нет добавленных ингредиентов</td>
               </tr>
             ) : ingredients.map((item) => {
-              const savingPercent = item.priceNow > 0 
-                ? ((item.priceNow - item.priceBulk) / item.priceNow) * 100 
-                : 0;
-
               const isEditing = editingId === item.id;
 
               return (
@@ -109,17 +106,38 @@ export default function IngredientsTab() {
                         type="number" 
                         min="0"
                         className="w-full px-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-yellow-500"
-                        value={item.priceBulk || ''}
-                        onChange={e => updateIngredient(item.id, { priceBulk: parseFloat(e.target.value) || 0 })}
+                        value={item.volumePrices.s1 || ''}
+                        onChange={e => updateIngredient(item.id, { volumePrices: { ...item.volumePrices, s1: parseFloat(e.target.value) || 0 } })}
                       />
                     ) : (
-                      <span>{item.priceBulk.toLocaleString('ru-RU')}</span>
+                      <span>{item.volumePrices.s1.toLocaleString('ru-RU')}</span>
                     )}
                   </td>
                   <td className="py-2 px-4">
-                    <span className={`font-medium ${savingPercent > 0 ? 'text-green-600' : savingPercent < 0 ? 'text-red-500' : 'text-gray-500'}`}>
-                      {savingPercent.toFixed(1)}%
-                    </span>
+                    {isEditing ? (
+                      <input 
+                        type="number" 
+                        min="0"
+                        className="w-full px-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-yellow-500"
+                        value={item.volumePrices.s2 || ''}
+                        onChange={e => updateIngredient(item.id, { volumePrices: { ...item.volumePrices, s2: parseFloat(e.target.value) || 0 } })}
+                      />
+                    ) : (
+                      <span>{item.volumePrices.s2.toLocaleString('ru-RU')}</span>
+                    )}
+                  </td>
+                  <td className="py-2 px-4">
+                    {isEditing ? (
+                      <input 
+                        type="number" 
+                        min="0"
+                        className="w-full px-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-yellow-500"
+                        value={item.volumePrices.s3 || ''}
+                        onChange={e => updateIngredient(item.id, { volumePrices: { ...item.volumePrices, s3: parseFloat(e.target.value) || 0 } })}
+                      />
+                    ) : (
+                      <span>{item.volumePrices.s3.toLocaleString('ru-RU')}</span>
+                    )}
                   </td>
                   <td className="py-2 px-4 text-right whitespace-nowrap">
                     {isEditing ? (

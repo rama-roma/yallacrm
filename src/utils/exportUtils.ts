@@ -1,148 +1,143 @@
 import * as XLSX from 'xlsx';
-import { CalculatorData, CalculatorState, getCalculatorData, toRussianCalculatorData } from '../store/useCalculatorStore';
+import { CalculatorData, CalculatorState, getCalculatorData, parseCalculatorData, toRussianCalculatorData } from '../store/useCalculatorStore';
+import { getScenarioSummaries } from './calculations';
+
+const STATE_SHEET = '_STATE_JSON';
 
 export const exportJSON = (state: CalculatorState, filename: string) => {
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(toRussianCalculatorData(getCalculatorData(state)), null, 2));
   const downloadAnchorNode = document.createElement('a');
   downloadAnchorNode.setAttribute("href", dataStr);
   downloadAnchorNode.setAttribute("download", filename + ".json");
-  document.body.appendChild(downloadAnchorNode); // required for firefox
+  document.body.appendChild(downloadAnchorNode);
   downloadAnchorNode.click();
   downloadAnchorNode.remove();
 };
 
+const setSheetStyle = (ws: XLSX.WorkSheet) => {
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:A1');
+  ws['!cols'] = Array.from({ length: range.e.c + 1 }, () => ({ wch: 22 }));
+
+  for (let row = range.s.r; row <= range.e.r; row += 1) {
+    for (let col = range.s.c; col <= range.e.c; col += 1) {
+      const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+      const cell = ws[cellRef];
+      if (!cell) continue;
+      cell.s = {
+        font: { name: 'Inter', sz: row === 0 ? 12 : 11, bold: row === 0, color: { rgb: row === 0 ? 'FFFFFF' : '111827' } },
+        fill: { fgColor: { rgb: row === 0 ? '111827' : 'FFFFFF' } },
+        alignment: { vertical: 'center', wrapText: true },
+        border: {
+          top: { style: 'thin', color: { rgb: 'E5E7EB' } },
+          bottom: { style: 'thin', color: { rgb: 'E5E7EB' } },
+          left: { style: 'thin', color: { rgb: 'E5E7EB' } },
+          right: { style: 'thin', color: { rgb: 'E5E7EB' } }
+        }
+      };
+    }
+  }
+};
+
+const appendJsonSheet = (wb: XLSX.WorkBook, rows: Record<string, unknown>[], sheetName: string) => {
+  const ws = XLSX.utils.json_to_sheet(rows);
+  setSheetStyle(ws);
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+};
+
 export const exportXLSX = (state: CalculatorData, filename: string) => {
   const wb = XLSX.utils.book_new();
+  const summaries = getScenarioSummaries(state);
 
-  // Calculate Dashboard Metrics
-  const getDishCosts = (dishId: string) => {
-    const dish = state.dishes.find(d => d.id === dishId);
-    if (!dish) return { now: 0, bulk: 0 };
-    let now = 0, bulk = 0;
-    dish.ingredients.forEach(di => {
-      const ing = state.ingredients.find(i => i.id === di.ingredientId);
-      if (ing) {
-        now += ing.priceNow * di.amount;
-        bulk += ing.priceBulk * di.amount;
-      }
-    });
-    return { now, bulk };
-  };
+  appendJsonSheet(wb, summaries.map((summary) => ({
+    Сценарий: summary.label,
+    'Порций в день': summary.dailyVolume,
+    'Плановых дней': summary.plannedDays,
+    'Порций всего': summary.volume,
+    'Средняя цена': summary.weightedPrice,
+    'Средний фудкост': summary.weightedFoodCost,
+    Выручка: summary.revenue,
+    Фудкост: summary.foodCost,
+    'Постоянные расходы': summary.fixedCosts,
+    Прибыль: summary.profit
+  })), 'Аналитика');
 
-  let avgPrice = 0, avgFcNow = 0, avgFcBulk = 0;
-  if (state.combos.length > 0) {
-    let totalPrice = 0, totalFcNow = 0, totalFcBulk = 0;
-    state.combos.forEach(combo => {
-      totalPrice += combo.price;
-      let fcNow = combo.packagingCost;
-      let fcBulk = combo.packagingCost;
-      combo.dishIds.forEach(dishId => {
-        const dCosts = getDishCosts(dishId);
-        fcNow += dCosts.now;
-        fcBulk += dCosts.bulk;
-      });
-      totalFcNow += fcNow;
-      totalFcBulk += fcBulk;
-    });
-    avgPrice = totalPrice / state.combos.length;
-    avgFcNow = totalFcNow / state.combos.length;
-    avgFcBulk = totalFcBulk / state.combos.length;
+  appendJsonSheet(wb, [
+    { Поле: 'Название кухни', Значение: state.partner.name },
+    { Поле: 'Менеджер', Значение: state.partner.manager },
+    { Поле: 'Адрес', Значение: state.partner.address },
+    { Поле: 'Телефон', Значение: state.partner.phone }
+  ], 'Партнер');
+
+  appendJsonSheet(wb, state.ingredients.map((i) => ({
+    ID: i.id,
+    Название: i.name,
+    Единица: i.unit,
+    'Цена сейчас': i.priceNow,
+    'Цена +30': i.volumePrices.s1,
+    'Цена +70': i.volumePrices.s2,
+    'Цена +150': i.volumePrices.s3
+  })), 'Ингредиенты');
+
+  appendJsonSheet(wb, state.dishes.map((d) => ({
+    ID: d.id,
+    Название: d.name,
+    'Тип расчета': d.productionType,
+    'Порций на выходе': d.batchYield,
+    'Ингредиенты': d.ingredients.map((di) => `${di.ingredientId}:${di.amount}`).join('; ')
+  })), 'Блюда');
+
+  appendJsonSheet(wb, state.combos.map((c) => ({
+    ID: c.id,
+    Название: c.name,
+    Активно: c.active ? 'Да' : 'Нет',
+    Блюда: c.dishIds.join('; '),
+    Упаковка: c.packagingCost,
+    'Цена продажи': c.price,
+    'Sales Mix %': c.salesMix
+  })), 'Комбо');
+
+  appendJsonSheet(wb, state.calendar.map((day) => ({
+    Дата: day.date,
+    Комбо: day.comboIds.join('; ')
+  })), 'Календарь');
+
+  appendJsonSheet(wb, state.costs.map((c) => ({
+    ID: c.id,
+    Статья: c.name,
+    Сумма: c.amount
+  })), 'Расходы');
+
+  appendJsonSheet(wb, [
+    { Поле: 'Текущий объем', Значение: state.scenarios.currentVolume },
+    { Поле: 'Рабочих дней', Значение: state.scenarios.workingDays },
+    { Поле: 'Сценарий +30', Значение: state.scenarios.s1 },
+    { Поле: 'Сценарий +70', Значение: state.scenarios.s2 },
+    { Поле: 'Сценарий +150', Значение: state.scenarios.s3 },
+    { Поле: 'Курс USD', Значение: state.scenarios.exchangeRate },
+    { Поле: 'Дата старта', Значение: state.scenarios.startDate },
+    { Поле: 'Месяц планирования', Значение: state.scenarios.planningMonth }
+  ], 'Сценарии');
+
+  const stateWs = XLSX.utils.aoa_to_sheet([['json'], [JSON.stringify(state)]]);
+  XLSX.utils.book_append_sheet(wb, stateWs, STATE_SHEET);
+  const stateSheetIndex = wb.SheetNames.indexOf(STATE_SHEET);
+  wb.Workbook = wb.Workbook || {};
+  wb.Workbook.Sheets = wb.Workbook.Sheets || [];
+  wb.Workbook.Sheets[stateSheetIndex] = { Hidden: 1, name: STATE_SHEET };
+
+  XLSX.writeFile(wb, filename + ".xlsx", { cellStyles: true });
+};
+
+export const parseXLSXFile = async (file: File): Promise<CalculatorData> => {
+  const buffer = await file.arrayBuffer();
+  const wb = XLSX.read(buffer, { type: 'array' });
+  const stateSheet = wb.Sheets[STATE_SHEET];
+
+  if (stateSheet) {
+    const rows = XLSX.utils.sheet_to_json<{ json: string }>(stateSheet);
+    const rawJson = rows[0]?.json;
+    if (rawJson) return parseCalculatorData(JSON.parse(rawJson));
   }
 
-  const fixedCostsMonth = state.costs.reduce((sum, cost) => sum + cost.amount, 0);
-  const { currentVolume, workingDays, s1, s2, s3 } = state.scenarios;
-  const vCurrent = currentVolume * workingDays;
-  const vS1 = (currentVolume + s1) * workingDays;
-  const vS2 = (currentVolume + s2) * workingDays;
-  const vS3 = (currentVolume + s3) * workingDays;
-
-  const calcMetrics = (volume: number, fcType: 'now' | 'bulk') => {
-    const revenue = volume * avgPrice;
-    const foodCost = volume * (fcType === 'now' ? avgFcNow : avgFcBulk);
-    const contribution = revenue - foodCost;
-    const profit = contribution - fixedCostsMonth;
-    return { revenue, foodCost, contribution, profit };
-  };
-
-  const mCurrent = calcMetrics(vCurrent, 'now');
-  const mS1 = calcMetrics(vS1, 'bulk');
-  const mS2 = calcMetrics(vS2, 'bulk');
-  const mS3 = calcMetrics(vS3, 'bulk');
-
-  // 0. Dashboard / Analytics (FIRST SHEET)
-  const dashboardData = [
-    { 'Метрика': 'Выручка', 'СЕЙЧАС': mCurrent.revenue, [`Сценарий +${s1}`]: mS1.revenue, [`Сценарий +${s2}`]: mS2.revenue, [`Сценарий +${s3}`]: mS3.revenue },
-    { 'Метрика': 'Общий фудкост', 'СЕЙЧАС': mCurrent.foodCost, [`Сценарий +${s1}`]: mS1.foodCost, [`Сценарий +${s2}`]: mS2.foodCost, [`Сценарий +${s3}`]: mS3.foodCost },
-    { 'Метрика': 'Контрибуция', 'СЕЙЧАС': mCurrent.contribution, [`Сценарий +${s1}`]: mS1.contribution, [`Сценарий +${s2}`]: mS2.contribution, [`Сценарий +${s3}`]: mS3.contribution },
-    { 'Метрика': 'Постоянные расходы', 'СЕЙЧАС': fixedCostsMonth, [`Сценарий +${s1}`]: fixedCostsMonth, [`Сценарий +${s2}`]: fixedCostsMonth, [`Сценарий +${s3}`]: fixedCostsMonth },
-    { 'Метрика': 'Операционная прибыль', 'СЕЙЧАС': mCurrent.profit, [`Сценарий +${s1}`]: mS1.profit, [`Сценарий +${s2}`]: mS2.profit, [`Сценарий +${s3}`]: mS3.profit },
-  ];
-  const wsDashboard = XLSX.utils.json_to_sheet(dashboardData);
-  XLSX.utils.book_append_sheet(wb, wsDashboard, "Аналитика (Сводка)");
-
-  // 1. Partner
-  const partnerData = [
-    { Field: 'Название кухни', Value: state.partner.name },
-    { Field: 'Менеджер', Value: state.partner.manager },
-    { Field: 'Адрес', Value: state.partner.address },
-    { Field: 'Телефон', Value: state.partner.phone },
-  ];
-  const wsPartner = XLSX.utils.json_to_sheet(partnerData);
-  XLSX.utils.book_append_sheet(wb, wsPartner, "Партнер");
-
-  // 2. Ingredients
-  const ingredientsData = state.ingredients.map(i => ({
-    'Название': i.name,
-    'Единица': i.unit,
-    'Цена СЕЙЧАС': i.priceNow,
-    'Цена ОПТОМ': i.priceBulk
-  }));
-  const wsIngredients = XLSX.utils.json_to_sheet(ingredientsData);
-  XLSX.utils.book_append_sheet(wb, wsIngredients, "Ингредиенты");
-
-  // 3. Dishes
-  const dishesData = state.dishes.map(d => ({
-    'Название': d.name,
-    'Ингредиенты (ID:Кол-во)': d.ingredients.map(di => {
-      const ing = state.ingredients.find(i => i.id === di.ingredientId);
-      return `${ing ? ing.name : 'Неизвестно'} - ${di.amount}`;
-    }).join('; ')
-  }));
-  const wsDishes = XLSX.utils.json_to_sheet(dishesData);
-  XLSX.utils.book_append_sheet(wb, wsDishes, "Блюда");
-
-  // 4. Combos
-  const combosData = state.combos.map(c => ({
-    'Название': c.name,
-    'Блюда': c.dishIds.map(id => {
-      const d = state.dishes.find(x => x.id === id);
-      return d ? d.name : 'Неизвестно';
-    }).join('; '),
-    'Стоимость упаковки': c.packagingCost,
-    'Цена продажи': c.price
-  }));
-  const wsCombos = XLSX.utils.json_to_sheet(combosData);
-  XLSX.utils.book_append_sheet(wb, wsCombos, "Комбо");
-
-  // 5. Costs
-  const costsData = state.costs.map(c => ({
-    'Статья расхода': c.name,
-    'Сумма': c.amount
-  }));
-  const wsCosts = XLSX.utils.json_to_sheet(costsData);
-  XLSX.utils.book_append_sheet(wb, wsCosts, "Расходы");
-
-  // 6. Scenarios
-  const scenariosData = [
-    { Field: 'Текущий объем', Value: state.scenarios.currentVolume },
-    { Field: 'Рабочих дней', Value: state.scenarios.workingDays },
-    { Field: 'Сценарий 1 (доп.)', Value: state.scenarios.s1 },
-    { Field: 'Сценарий 2 (доп.)', Value: state.scenarios.s2 },
-    { Field: 'Сценарий 3 (доп.)', Value: state.scenarios.s3 },
-    { Field: 'Курс USD', Value: state.scenarios.exchangeRate },
-  ];
-  const wsScenarios = XLSX.utils.json_to_sheet(scenariosData);
-  XLSX.utils.book_append_sheet(wb, wsScenarios, "Сценарии");
-
-  XLSX.writeFile(wb, filename + ".xlsx");
+  throw new Error('В XLSX не найден служебный лист состояния. Импортируйте файл, экспортированный из калькулятора.');
 };

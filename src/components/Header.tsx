@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { getCalculatorData, useCalculatorStore } from '../store/useCalculatorStore';
-import { exportJSON, exportXLSX } from '../utils/exportUtils';
+import { exportJSON, exportXLSX, parseXLSXFile } from '../utils/exportUtils';
 import { CheckCircle2, Download, FileSpreadsheet, Loader2, Upload } from 'lucide-react';
 
 export default function Header() {
@@ -29,25 +29,45 @@ export default function Header() {
     exportXLSX(getCalculatorData(state), filename);
   };
 
-  const handleImportJSON = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const content = e.target?.result as string;
-        const parsed = JSON.parse(content);
-        if (parsed && typeof parsed === 'object') {
-          await importState(parsed);
-          alert('Данные успешно загружены.');
+    const importJson = () => {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const content = e.target?.result as string;
+          const parsed = JSON.parse(content);
+          if (parsed && typeof parsed === 'object') {
+            await importState(parsed);
+            alert('Данные успешно загружены.');
+          }
+        } catch (error) {
+          alert('Ошибка при чтении файла. Убедитесь, что это корректный JSON.');
+          console.error(error);
         }
+      };
+      reader.readAsText(file);
+    };
+
+    const importXlsx = async () => {
+      try {
+        const parsed = await parseXLSXFile(file);
+        await importState(parsed);
+        alert('Excel-файл успешно загружен.');
       } catch (error) {
-        alert('Ошибка при чтении файла. Убедитесь, что это корректный JSON.');
+        alert(error instanceof Error ? error.message : 'Ошибка при чтении Excel-файла.');
         console.error(error);
       }
     };
-    reader.readAsText(file);
+
+    if (file.name.toLowerCase().endsWith('.xlsx')) {
+      void importXlsx();
+    } else {
+      importJson();
+    }
+
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -80,14 +100,14 @@ export default function Header() {
             className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors text-sm font-medium"
           >
             <Upload className="w-4 h-4" />
-            Загрузить расчет (.json)
+            Импорт (.xlsx/.json)
           </button>
           <input 
             type="file" 
-            accept=".json" 
+            accept=".xlsx,.json" 
             className="hidden" 
             ref={fileInputRef} 
-            onChange={handleImportJSON} 
+            onChange={handleImportFile} 
           />
           <button 
             onClick={handleExportJSON}

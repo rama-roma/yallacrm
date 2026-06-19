@@ -1,4 +1,5 @@
 import { CalculatorData } from '../store/useCalculatorStore';
+import { getComboFoodCost, getSalesMixTotal } from './calculations';
 
 export type ValidationSeverity = 'error' | 'warning' | 'info';
 
@@ -12,38 +13,14 @@ export interface ValidationIssue {
 
 const isBlank = (value: string) => value.trim().length === 0;
 
-export const getDishCosts = (data: CalculatorData, dishId: string) => {
-  const dish = data.dishes.find((item) => item.id === dishId);
-  if (!dish) return { now: 0, bulk: 0 };
-
-  return dish.ingredients.reduce(
-    (total, dishIngredient) => {
-      const ingredient = data.ingredients.find((item) => item.id === dishIngredient.ingredientId);
-      if (!ingredient) return total;
-
-      return {
-        now: total.now + ingredient.priceNow * dishIngredient.amount,
-        bulk: total.bulk + ingredient.priceBulk * dishIngredient.amount
-      };
-    },
-    { now: 0, bulk: 0 }
-  );
-};
-
 export const getComboCosts = (data: CalculatorData, comboId: string) => {
   const combo = data.combos.find((item) => item.id === comboId);
   if (!combo) return { now: 0, bulk: 0 };
 
-  return combo.dishIds.reduce(
-    (total, dishId) => {
-      const dishCosts = getDishCosts(data, dishId);
-      return {
-        now: total.now + dishCosts.now,
-        bulk: total.bulk + dishCosts.bulk
-      };
-    },
-    { now: combo.packagingCost, bulk: combo.packagingCost }
-  );
+  return {
+    now: getComboFoodCost(data, comboId, 'current'),
+    bulk: getComboFoodCost(data, comboId, 's3')
+  };
 };
 
 export const validateCalculatorData = (data: CalculatorData): ValidationIssue[] => {
@@ -96,23 +73,23 @@ export const validateCalculatorData = (data: CalculatorData): ValidationIssue[] 
       });
     }
 
-    if (ingredient.priceBulk <= 0) {
+    if (ingredient.volumePrices.s1 <= 0 || ingredient.volumePrices.s2 <= 0 || ingredient.volumePrices.s3 <= 0) {
       pushIssue({
-        id: `ingredient-${ingredient.id}-price-bulk`,
+        id: `ingredient-${ingredient.id}-volume-prices`,
         severity: 'error',
-        section: 'Ингредиенты',
-        title: `Нет оптовой цены: ${label}`,
-        description: 'Цена ОПТОМ должна быть больше нуля, иначе сценарии сотрудничества будут занижены.'
+        section: 'Ступенчатые цены',
+        title: `Не заполнены цены по объемам: ${label}`,
+        description: 'Заполните цены для сценариев +30, +70 и +150, иначе сценарии будут считаться некорректно.'
       });
     }
 
-    if (ingredient.priceBulk > ingredient.priceNow) {
+    if (ingredient.volumePrices.s3 > ingredient.priceNow) {
       pushIssue({
-        id: `ingredient-${ingredient.id}-bulk-higher`,
+        id: `ingredient-${ingredient.id}-s3-higher`,
         severity: 'warning',
-        section: 'Ингредиенты',
-        title: `Оптовая цена выше текущей: ${label}`,
-        description: 'Проверьте цену, потому что закупка оптом обычно не должна быть дороже текущей.'
+        section: 'Ступенчатые цены',
+        title: `Цена +150 выше текущей: ${label}`,
+        description: 'Проверьте цену, потому что закупка при большом объеме обычно не должна быть дороже текущей.'
       });
     }
   });
@@ -147,6 +124,16 @@ export const validateCalculatorData = (data: CalculatorData): ValidationIssue[] 
         section: 'Блюда',
         title: `Пустой состав: ${label}`,
         description: 'Добавьте ингредиенты в состав, иначе себестоимость блюда будет нулевой.'
+      });
+    }
+
+    if (dish.productionType === 'batch' && dish.batchYield <= 0) {
+      pushIssue({
+        id: `dish-${dish.id}-batch-yield`,
+        severity: 'error',
+        section: 'Блюда',
+        title: `Не указан выход партии: ${label}`,
+        description: 'Для массового производства нужно указать количество порций на выходе.'
       });
     }
 
@@ -247,7 +234,7 @@ export const validateCalculatorData = (data: CalculatorData): ValidationIssue[] 
           severity: 'error',
           section: 'Маржа',
           title: `Маржа сейчас отрицательная: ${label}`,
-          description: `Цена ${combo.price.toFixed(2)} TJS ниже или равна текущей себестоимости ${comboCosts.now.toFixed(2)} TJS.`
+          description: 'Цена продажи ниже или равна текущей расчетной себестоимости. Подробные суммы доступны только в аналитике.'
         });
       }
 
@@ -256,12 +243,33 @@ export const validateCalculatorData = (data: CalculatorData): ValidationIssue[] 
           id: `combo-${combo.id}-margin-bulk-negative`,
           severity: 'warning',
           section: 'Маржа',
-          title: `Маржа оптом не положительная: ${label}`,
-          description: `Цена ${combo.price.toFixed(2)} TJS ниже или равна оптовой себестоимости ${comboCosts.bulk.toFixed(2)} TJS.`
+          title: `Маржа в сценарии +150 не положительная: ${label}`,
+          description: 'Цена продажи ниже или равна расчетной себестоимости в большом объеме. Подробные суммы доступны только в аналитике.'
         });
       }
     }
+
+    if (combo.active && combo.salesMix <= 0) {
+      pushIssue({
+        id: `combo-${combo.id}-sales-mix-empty`,
+        severity: 'error',
+        section: 'Sales Mix',
+        title: `Не указана доля продаж: ${label}`,
+        description: 'Для активного комбо укажите Sales Mix в процентах.'
+      });
+    }
   });
+
+  const salesMixTotal = getSalesMixTotal(data);
+  if (data.combos.some((combo) => combo.active) && Math.abs(salesMixTotal - 100) > 0.01) {
+    pushIssue({
+      id: 'sales-mix-total-invalid',
+      severity: 'error',
+      section: 'Sales Mix',
+      title: 'Сумма Sales Mix не равна 100%',
+      description: `Сейчас сумма активных комбо равна ${salesMixTotal.toFixed(1)}%. Исправьте доли перед аналитикой.`
+    });
+  }
 
   data.costs.forEach((cost) => {
     const label = cost.name || cost.id || 'расход без названия';
@@ -314,6 +322,26 @@ export const validateCalculatorData = (data: CalculatorData): ValidationIssue[] 
       section: 'Сценарии',
       title: 'Не указан курс USD к TJS',
       description: 'Расчеты в TJS продолжат работать, но долларовый эквивалент не будет полезным.'
+    });
+  }
+
+  if (!data.scenarios.startDate) {
+    pushIssue({
+      id: 'scenario-start-date-empty',
+      severity: 'error',
+      section: 'Календарь',
+      title: 'Не указана дата старта',
+      description: 'Финансовая модель должна считать продажи строго с даты старта.'
+    });
+  }
+
+  if (data.calendar.filter((day) => day.date >= data.scenarios.startDate && day.comboIds.length > 0).length === 0) {
+    pushIssue({
+      id: 'calendar-empty-after-start',
+      severity: 'warning',
+      section: 'Календарь',
+      title: 'Нет комбо в календаре после даты старта',
+      description: 'Если календарь пуст, аналитика использует количество рабочих дней из сценариев как резервное значение.'
     });
   }
 

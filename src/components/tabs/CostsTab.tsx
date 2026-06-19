@@ -2,6 +2,7 @@ import React from 'react';
 import { useCalculatorStore } from '../../store/useCalculatorStore';
 import { v4 as uuidv4 } from 'uuid';
 import { Plus, Trash2 } from 'lucide-react';
+import Dashboard from '../Dashboard';
 
 export default function CostsTab() {
   const { costs, addCost, updateCost, removeCost, scenarios, updateScenarios } = useCalculatorStore();
@@ -17,12 +18,12 @@ export default function CostsTab() {
   const totalCosts = costs.reduce((sum, cost) => sum + cost.amount, 0);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Costs List */}
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Постоянные расходы</h2>
+            <h2 className="text-xl font-bold text-gray-900">05 Постоянные расходы</h2>
             <p className="text-sm text-gray-500">Аренда, ЗП, коммуналка и т.д. (в месяц)</p>
           </div>
         </div>
@@ -79,7 +80,6 @@ export default function CostsTab() {
         </div>
       </div>
 
-      {/* Scenarios Configuration */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col h-full">
         <div className="mb-6">
           <h2 className="text-xl font-bold text-gray-900">Объемы и Сценарии</h2>
@@ -160,6 +160,8 @@ export default function CostsTab() {
           </div>
         </div>
       </div>
+      </div>
+      <Dashboard />
     </div>
   );
 }

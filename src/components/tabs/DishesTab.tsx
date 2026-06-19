@@ -10,6 +10,8 @@ export default function DishesTab() {
     addDish({
       id: uuidv4(),
       name: 'Новое блюдо',
+      productionType: 'single',
+      batchYield: 1,
       ingredients: []
     });
   };
@@ -19,7 +21,7 @@ export default function DishesTab() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-xl font-bold text-gray-900">02 Блюда</h2>
-          <p className="text-sm text-gray-500">Сборка блюд из ингредиентов (тех. карты)</p>
+          <p className="text-sm text-gray-500">Техкарты с расчетом на порцию или на производственную партию</p>
         </div>
         <button 
           onClick={handleAddDish}
@@ -36,18 +38,6 @@ export default function DishesTab() {
             Нет добавленных блюд
           </div>
         ) : dishes.map(dish => {
-          
-          let costNow = 0;
-          let costBulk = 0;
-
-          dish.ingredients.forEach(di => {
-            const ing = ingredients.find(i => i.id === di.ingredientId);
-            if (ing) {
-              costNow += ing.priceNow * di.amount;
-              costBulk += ing.priceBulk * di.amount;
-            }
-          });
-
           return (
             <div key={dish.id} className="border border-gray-200 rounded-lg overflow-hidden flex flex-col bg-gray-50">
               {/* Header */}
@@ -69,6 +59,40 @@ export default function DishesTab() {
 
               {/* Ingredients List */}
               <div className="p-4 flex-1">
+                <div className="mb-4 grid grid-cols-1 gap-3 rounded-lg border border-gray-200 bg-white p-3 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-700">Тип расчета</label>
+                    <div className="grid grid-cols-2 gap-1 rounded-md bg-gray-100 p-1 text-sm">
+                      <button
+                        type="button"
+                        onClick={() => updateDish(dish.id, { productionType: 'single', batchYield: 1 })}
+                        className={`rounded px-2 py-1.5 font-medium transition-colors ${dish.productionType === 'single' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                      >
+                        1 порция
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateDish(dish.id, { productionType: 'batch', batchYield: Math.max(1, dish.batchYield || 1) })}
+                        className={`rounded px-2 py-1.5 font-medium transition-colors ${dish.productionType === 'batch' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                      >
+                        Batch
+                      </button>
+                    </div>
+                  </div>
+                  {dish.productionType === 'batch' && (
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-700">Порций на выходе</label>
+                      <input
+                        type="number"
+                        min="1"
+                        className="w-full rounded border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-yellow-500"
+                        value={dish.batchYield || ''}
+                        onChange={(e) => updateDish(dish.id, { batchYield: parseInt(e.target.value) || 1 })}
+                        required
+                      />
+                    </div>
+                  )}
+                </div>
                 <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Состав</h4>
                 {dish.ingredients.length === 0 ? (
                   <p className="text-sm text-gray-400 mb-4">Состав пуст. Добавьте ингредиенты.</p>
@@ -134,16 +158,10 @@ export default function DishesTab() {
                 </button>
               </div>
 
-              {/* Footer Calculations */}
-              <div className="p-4 bg-white border-t border-gray-200 grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Себестоимость СЕЙЧАС</p>
-                  <p className="font-semibold text-gray-900">{costNow.toFixed(2)} TJS</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">Себестоимость ОПТОМ</p>
-                  <p className="font-semibold text-green-600">{costBulk.toFixed(2)} TJS</p>
-                </div>
+              <div className="border-t border-gray-200 bg-white p-4 text-xs text-gray-500">
+                {dish.productionType === 'batch'
+                  ? 'Ингредиенты вводятся на всю партию. Стоимость порции считается только во вкладке аналитики.'
+                  : 'Ингредиенты вводятся на одну порцию. Итоговые суммы скрыты до аналитики.'}
               </div>
             </div>
           );
