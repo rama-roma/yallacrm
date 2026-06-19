@@ -430,22 +430,10 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
           return;
         }
 
-        const response = await fetch('/data/calculator-data.json', { cache: 'no-store' });
-        if (!response.ok) {
-          throw new Error('Не удалось загрузить стартовый JSON-файл');
-        }
-
-        const initialData = await response.json();
-        const normalizedData = parseCalculatorData(initialData);
-
         set({
-          ...normalizedData,
+          ...defaultState,
           history: Array.isArray(storedHistory) ? storedHistory : [],
           isLoading: false
-        });
-        await writeJsonToStorage(STORAGE_KEY, {
-          savedAt: new Date().toISOString(),
-          data: normalizedData
         });
       } catch (error) {
         set({
