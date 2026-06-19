@@ -1,0 +1,82 @@
+{
+  "partner": {
+    "name": "Yalla Lunch Demo Kitchen",
+    "manager": "",
+    "address": "Dushanbe",
+    "phone": ""
+  },
+  "ingredients": [
+    {
+      "id": "ingredient-rice",
+      "name": "Рис",
+      "unit": "кг",
+      "priceNow": 14,
+      "priceBulk": 12
+    },
+    {
+      "id": "ingredient-chicken",
+      "name": "Курица",
+      "unit": "кг",
+      "priceNow": 42,
+      "priceBulk": 38
+    },
+    {
+      "id": "ingredient-oil",
+      "name": "Масло",
+      "unit": "л",
+      "priceNow": 22,
+      "priceBulk": 19
+    }
+  ],
+  "dishes": [
+    {
+      "id": "dish-plov",
+      "name": "Плов",
+      "ingredients": [
+        {
+          "ingredientId": "ingredient-rice",
+          "amount": 0.12
+        },
+        {
+          "ingredientId": "ingredient-chicken",
+          "amount": 0.16
+        },
+        {
+          "ingredientId": "ingredient-oil",
+          "amount": 0.03
+        }
+      ]
+    }
+  ],
+  "combos": [
+    {
+      "id": "combo-lunch",
+      "name": "Ланч комбо",
+      "dishIds": [
+        "dish-plov"
+      ],
+      "packagingCost": 2.5,
+      "price": 28
+    }
+  ],
+  "costs": [
+    {
+      "id": "cost-rent",
+      "name": "Аренда",
+      "amount": 5000
+    },
+    {
+      "id": "cost-salary",
+      "name": "Зарплата",
+      "amount": 12000
+    }
+  ],
+  "scenarios": {
+    "currentVolume": 10,
+    "workingDays": 22,
+    "s1": 30,
+    "s2": 70,
+    "s3": 150,
+    "exchangeRate": 9.4
+  }
+}

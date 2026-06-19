@@ -1,8 +1,8 @@
 import * as XLSX from 'xlsx';
-import { CalculatorState } from '../store/useCalculatorStore';
+import { CalculatorData, CalculatorState, getCalculatorData } from '../store/useCalculatorStore';
 
 export const exportJSON = (state: CalculatorState, filename: string) => {
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(getCalculatorData(state), null, 2));
   const downloadAnchorNode = document.createElement('a');
   downloadAnchorNode.setAttribute("href", dataStr);
   downloadAnchorNode.setAttribute("download", filename + ".json");
@@ -11,7 +11,7 @@ export const exportJSON = (state: CalculatorState, filename: string) => {
   downloadAnchorNode.remove();
 };
 
-export const exportXLSX = (state: CalculatorState, filename: string) => {
+export const exportXLSX = (state: CalculatorData, filename: string) => {
   const wb = XLSX.utils.book_new();
 
   // Calculate Dashboard Metrics

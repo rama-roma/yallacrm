@@ -1,21 +1,32 @@
 import React, { useRef } from 'react';
-import { useCalculatorStore } from '../store/useCalculatorStore';
+import { getCalculatorData, useCalculatorStore } from '../store/useCalculatorStore';
 import { exportJSON, exportXLSX } from '../utils/exportUtils';
-import { Download, Upload, FileSpreadsheet } from 'lucide-react';
+import { CheckCircle2, Download, FileSpreadsheet, Loader2, Upload } from 'lucide-react';
 
 export default function Header() {
   const state = useCalculatorStore();
-  const { partner, scenarios, updatePartner, updateScenarios, importState } = state;
+  const {
+    partner,
+    scenarios,
+    updatePartner,
+    updateScenarios,
+    importState,
+    saveSnapshot,
+    isSaving,
+    lastSavedAt,
+    error
+  } = state;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleExportJSON = () => {
+  const handleExportJSON = async () => {
     const filename = `Yalla_Model_${partner.name || 'Партнер'}_${new Date().toISOString().split('T')[0]}`;
+    await saveSnapshot(filename);
     exportJSON(state, filename);
   };
 
   const handleExportXLSX = () => {
     const filename = `Yalla_Model_${partner.name || 'Партнер'}_${new Date().toISOString().split('T')[0]}`;
-    exportXLSX(state, filename);
+    exportXLSX(getCalculatorData(state), filename);
   };
 
   const handleImportJSON = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -23,13 +34,13 @@ export default function Header() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const content = e.target?.result as string;
         const parsed = JSON.parse(content);
         if (parsed && typeof parsed === 'object') {
-          importState(parsed);
-          alert('Данные успешно загружены!');
+          await importState(parsed);
+          alert('Данные успешно загружены.');
         }
       } catch (error) {
         alert('Ошибка при чтении файла. Убедитесь, что это корректный JSON.');
@@ -46,7 +57,22 @@ export default function Header() {
     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6 flex flex-col gap-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Калькулятор кухни Yalla Lunch</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Калькулятор кухни Yalla</h1>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-gray-500">
+          {isSaving ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Сохранение...
+            </>
+          ) : lastSavedAt ? (
+            <>
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              Последнее сохранение: {new Date(lastSavedAt).toLocaleString('ru-RU')}
+            </>
+          ) : (
+            'Данные загрузятся из JSON-файла'
+          )}
         </div>
         <div className="flex gap-2 flex-wrap">
           <button 
@@ -65,6 +91,7 @@ export default function Header() {
           />
           <button 
             onClick={handleExportJSON}
+            disabled={isSaving}
             className="flex items-center gap-2 px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg transition-colors text-sm font-medium"
           >
             <Download className="w-4 h-4" />
@@ -79,6 +106,11 @@ export default function Header() {
           </button>
         </div>
       </div>
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <div>

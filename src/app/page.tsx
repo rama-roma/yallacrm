@@ -1,15 +1,32 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Header from '../components/Header';
 import IngredientsTab from '../components/tabs/IngredientsTab';
 import DishesTab from '../components/tabs/DishesTab';
 import CombosTab from '../components/tabs/CombosTab';
 import CostsTab from '../components/tabs/CostsTab';
 import Dashboard from '../components/Dashboard';
+import HistoryTab from '../components/tabs/HistoryTab';
+import { useCalculatorStore } from '../store/useCalculatorStore';
+
+type ActiveTab = 'ingredients' | 'dishes' | 'combos' | 'costs' | 'history';
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'ingredients' | 'dishes' | 'combos' | 'costs'>('ingredients');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('ingredients');
+  const { isLoading, loadInitialData } = useCalculatorStore();
+
+  useEffect(() => {
+    void loadInitialData();
+  }, [loadInitialData]);
+
+  const tabs: { id: ActiveTab; label: string }[] = [
+    { id: 'ingredients', label: '01 Ингредиенты' },
+    { id: 'dishes', label: '02 Блюда' },
+    { id: 'combos', label: '03 Комбо' },
+    { id: 'costs', label: '04 Расходы и Объемы' },
+    { id: 'history', label: '05 История' }
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans p-4 md:p-8">
@@ -17,37 +34,31 @@ export default function Home() {
         <Header />
 
         <div className="flex space-x-2 border-b border-gray-200 overflow-x-auto no-scrollbar">
-          <button 
-            onClick={() => setActiveTab('ingredients')}
-            className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === 'ingredients' ? 'border-yellow-500 text-yellow-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-          >
-            01 Ингредиенты
-          </button>
-          <button 
-            onClick={() => setActiveTab('dishes')}
-            className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === 'dishes' ? 'border-yellow-500 text-yellow-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-          >
-            02 Блюда
-          </button>
-          <button 
-            onClick={() => setActiveTab('combos')}
-            className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === 'combos' ? 'border-yellow-500 text-yellow-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-          >
-            03 Комбо
-          </button>
-          <button 
-            onClick={() => setActiveTab('costs')}
-            className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === 'costs' ? 'border-yellow-500 text-yellow-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-          >
-            04 Расходы и Объемы
-          </button>
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === tab.id ? 'border-yellow-500 text-yellow-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         <div className="min-h-[400px]">
-          {activeTab === 'ingredients' && <IngredientsTab />}
-          {activeTab === 'dishes' && <DishesTab />}
-          {activeTab === 'combos' && <CombosTab />}
-          {activeTab === 'costs' && <CostsTab />}
+          {isLoading ? (
+            <div className="rounded-xl border border-gray-100 bg-white p-10 text-center text-sm text-gray-500 shadow-sm">
+              Загрузка данных...
+            </div>
+          ) : (
+            <>
+              {activeTab === 'ingredients' && <IngredientsTab />}
+              {activeTab === 'dishes' && <DishesTab />}
+              {activeTab === 'combos' && <CombosTab />}
+              {activeTab === 'costs' && <CostsTab />}
+              {activeTab === 'history' && <HistoryTab />}
+            </>
+          )}
         </div>
 
         <div className="pt-8 mt-12 border-t border-gray-200">
