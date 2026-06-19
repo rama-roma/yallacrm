@@ -58,6 +58,50 @@ export interface CalculatorData {
   scenarios: Scenarios;
 }
 
+export interface RussianCalculatorData {
+  партнер: {
+    название: string;
+    руководитель: string;
+    адрес: string;
+    телефон: string;
+  };
+  ингредиенты: {
+    ид: string;
+    название: string;
+    единица: string;
+    ценаСейчас: number;
+    ценаОптом: number;
+  }[];
+  блюда: {
+    ид: string;
+    название: string;
+    ингредиенты: {
+      идИнгредиента: string;
+      количество: number;
+    }[];
+  }[];
+  комбо: {
+    ид: string;
+    название: string;
+    блюда: string[];
+    стоимостьУпаковки: number;
+    ценаПродажи: number;
+  }[];
+  расходы: {
+    ид: string;
+    название: string;
+    сумма: number;
+  }[];
+  сценарии: {
+    текущийОбъем: number;
+    рабочиеДни: number;
+    сценарий1: number;
+    сценарий2: number;
+    сценарий3: number;
+    курсUsdTjs: number;
+  };
+}
+
 export interface SaveHistoryEntry {
   id: string;
   savedAt: string;
@@ -98,7 +142,7 @@ export interface CalculatorState extends CalculatorData {
 
   updateScenarios: (scenarios: Partial<Scenarios>) => Promise<void>;
 
-  importState: (state: Partial<CalculatorData>) => Promise<void>;
+  importState: (state: unknown) => Promise<void>;
 }
 
 const STORAGE_KEY = 'yalla-calculator-data';
@@ -143,6 +187,25 @@ const writeJsonToStorage = async (key: string, value: unknown) => {
   window.localStorage.setItem(key, JSON.stringify(value, null, 2));
 };
 
+const asRecord = (value: unknown): Record<string, unknown> => (
+  value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+);
+
+const asArray = (value: unknown): unknown[] => Array.isArray(value) ? value : [];
+
+const asString = (value: unknown, fallback = ''): string => (
+  typeof value === 'string' ? value : fallback
+);
+
+const asNumber = (value: unknown, fallback = 0): number => (
+  typeof value === 'number' && Number.isFinite(value) ? value : fallback
+);
+
+const asStringArray = (value: unknown): string[] => {
+  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string');
+  return typeof value === 'string' ? [value] : [];
+};
+
 const normalizeData = (data: Partial<CalculatorData> = {}): CalculatorData => ({
   partner: { ...defaultState.partner, ...data.partner },
   ingredients: Array.isArray(data.ingredients) ? data.ingredients : [],
@@ -150,6 +213,120 @@ const normalizeData = (data: Partial<CalculatorData> = {}): CalculatorData => ({
   combos: Array.isArray(data.combos) ? data.combos : [],
   costs: Array.isArray(data.costs) ? data.costs : [],
   scenarios: { ...defaultState.scenarios, ...data.scenarios }
+});
+
+export const parseCalculatorData = (input: unknown): CalculatorData => {
+  const root = asRecord(input);
+
+  if ('партнер' in root || 'ингредиенты' in root || 'сценарии' in root) {
+    const partner = asRecord(root.партнер);
+    const scenarios = asRecord(root.сценарии);
+
+    return normalizeData({
+      partner: {
+        name: asString(partner.название),
+        manager: asString(partner.руководитель),
+        address: asString(partner.адрес),
+        phone: asString(partner.телефон)
+      },
+      ingredients: asArray(root.ингредиенты).map((item) => {
+        const ingredient = asRecord(item);
+        return {
+          id: asString(ingredient.ид),
+          name: asString(ingredient.название),
+          unit: asString(ingredient.единица, 'кг'),
+          priceNow: asNumber(ingredient.ценаСейчас),
+          priceBulk: asNumber(ingredient.ценаОптом)
+        };
+      }),
+      dishes: asArray(root.блюда).map((item) => {
+        const dish = asRecord(item);
+        return {
+          id: asString(dish.ид),
+          name: asString(dish.название),
+          ingredients: asArray(dish.ингредиенты).map((dishIngredient) => {
+            const ingredient = asRecord(dishIngredient);
+            return {
+              ingredientId: asString(ingredient.идИнгредиента),
+              amount: asNumber(ingredient.количество)
+            };
+          })
+        };
+      }),
+      combos: asArray(root.комбо).map((item) => {
+        const combo = asRecord(item);
+        return {
+          id: asString(combo.ид),
+          name: asString(combo.название),
+          dishIds: asStringArray(combo.блюда),
+          packagingCost: asNumber(combo.стоимостьУпаковки),
+          price: asNumber(combo.ценаПродажи)
+        };
+      }),
+      costs: asArray(root.расходы).map((item) => {
+        const cost = asRecord(item);
+        return {
+          id: asString(cost.ид),
+          name: asString(cost.название),
+          amount: asNumber(cost.сумма)
+        };
+      }),
+      scenarios: {
+        currentVolume: asNumber(scenarios.текущийОбъем, defaultState.scenarios.currentVolume),
+        workingDays: asNumber(scenarios.рабочиеДни, defaultState.scenarios.workingDays),
+        s1: asNumber(scenarios.сценарий1, defaultState.scenarios.s1),
+        s2: asNumber(scenarios.сценарий2, defaultState.scenarios.s2),
+        s3: asNumber(scenarios.сценарий3, defaultState.scenarios.s3),
+        exchangeRate: asNumber(scenarios.курсUsdTjs, defaultState.scenarios.exchangeRate)
+      }
+    });
+  }
+
+  return normalizeData(input as Partial<CalculatorData>);
+};
+
+export const toRussianCalculatorData = (data: CalculatorData): RussianCalculatorData => ({
+  партнер: {
+    название: data.partner.name,
+    руководитель: data.partner.manager,
+    адрес: data.partner.address,
+    телефон: data.partner.phone
+  },
+  ингредиенты: data.ingredients.map((ingredient) => ({
+    ид: ingredient.id,
+    название: ingredient.name,
+    единица: ingredient.unit,
+    ценаСейчас: ingredient.priceNow,
+    ценаОптом: ingredient.priceBulk
+  })),
+  блюда: data.dishes.map((dish) => ({
+    ид: dish.id,
+    название: dish.name,
+    ингредиенты: dish.ingredients.map((ingredient) => ({
+      идИнгредиента: ingredient.ingredientId,
+      количество: ingredient.amount
+    }))
+  })),
+  комбо: data.combos.map((combo) => ({
+    ид: combo.id,
+    название: combo.name,
+    блюда: combo.dishIds,
+    стоимостьУпаковки: combo.packagingCost,
+    ценаПродажи: combo.price
+  })),
+  расходы: data.costs.map((cost) => ({
+    ид: cost.id,
+    название: cost.name,
+    сумма: cost.amount
+  })),
+  сценарии: {
+    текущийОбъем: data.scenarios.currentVolume,
+    рабочиеДни: data.scenarios.workingDays,
+    сценарий1: data.scenarios.s1,
+    сценарий2: data.scenarios.s2,
+    сценарий3: data.scenarios.s3,
+    курсUsdTjs: data.scenarios.exchangeRate
+  }
 });
 
 export const getCalculatorData = (state: CalculatorState): CalculatorData => ({
@@ -202,7 +379,7 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
 
       if (storedState?.data) {
         set({
-          ...normalizeData(storedState.data),
+          ...parseCalculatorData(storedState.data),
           history: Array.isArray(storedHistory) ? storedHistory : [],
           lastSavedAt: storedState.savedAt,
           isLoading: false
@@ -215,8 +392,8 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
         throw new Error('Не удалось загрузить стартовый JSON-файл');
       }
 
-      const initialData = await response.json() as Partial<CalculatorData>;
-      const normalizedData = normalizeData(initialData);
+      const initialData = await response.json();
+      const normalizedData = parseCalculatorData(initialData);
 
       set({
         ...normalizedData,
@@ -328,7 +505,7 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
   updateScenarios: (scenarios) => updateAndPersist((state) => ({ scenarios: { ...state.scenarios, ...scenarios } })),
 
   importState: async (newState) => {
-    set({ ...normalizeData(newState) });
+    set({ ...parseCalculatorData(newState) });
     await persistCurrentData();
   }
 }});

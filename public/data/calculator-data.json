@@ -1,82 +1,89 @@
 {
-  "partner": {
-    "name": "Yalla Lunch Demo Kitchen",
-    "manager": "",
-    "address": "Dushanbe",
-    "phone": ""
+  "партнер": {
+    "название": "Ромашка",
+    "руководитель": "Иванов Иван",
+    "адрес": "Худжанд",
+    "телефон": "+992 935227117"
   },
-  "ingredients": [
+  "ингредиенты": [
     {
-      "id": "ingredient-rice",
-      "name": "Рис",
-      "unit": "кг",
-      "priceNow": 14,
-      "priceBulk": 12
+      "ид": "ingredient-rice",
+      "название": "Рис",
+      "единица": "кг",
+      "ценаСейчас": 14,
+      "ценаОптом": 12
     },
     {
-      "id": "ingredient-chicken",
-      "name": "Курица",
-      "unit": "кг",
-      "priceNow": 42,
-      "priceBulk": 38
+      "ид": "ingredient-chicken",
+      "название": "Курица",
+      "единица": "кг",
+      "ценаСейчас": 42,
+      "ценаОптом": 38
     },
     {
-      "id": "ingredient-oil",
-      "name": "Масло",
-      "unit": "л",
-      "priceNow": 22,
-      "priceBulk": 19
+      "ид": "ingredient-oil",
+      "название": "Масло",
+      "единица": "л",
+      "ценаСейчас": 22,
+      "ценаОптом": 19
+    },
+    {
+      "ид": "3282930d-2d1a-46dd-984e-e83a0e4e87dc",
+      "название": "Морковь",
+      "единица": "кг",
+      "ценаСейчас": 12,
+      "ценаОптом": 10
     }
   ],
-  "dishes": [
+  "блюда": [
     {
-      "id": "dish-plov",
-      "name": "Плов",
-      "ingredients": [
+      "ид": "dish-plov",
+      "название": "Плов",
+      "ингредиенты": [
         {
-          "ingredientId": "ingredient-rice",
-          "amount": 0.12
+          "идИнгредиента": "ingredient-rice",
+          "количество": 0.12
         },
         {
-          "ingredientId": "ingredient-chicken",
-          "amount": 0.16
+          "идИнгредиента": "ingredient-chicken",
+          "количество": 0.16
         },
         {
-          "ingredientId": "ingredient-oil",
-          "amount": 0.03
+          "идИнгредиента": "ingredient-oil",
+          "количество": 0.03
         }
       ]
     }
   ],
-  "combos": [
+  "комбо": [
     {
-      "id": "combo-lunch",
-      "name": "Ланч комбо",
-      "dishIds": [
+      "ид": "combo-lunch",
+      "название": "Ланч комбо",
+      "блюда": [
         "dish-plov"
       ],
-      "packagingCost": 2.5,
-      "price": 28
+      "стоимостьУпаковки": 2.5,
+      "ценаПродажи": 28
     }
   ],
-  "costs": [
+  "расходы": [
     {
-      "id": "cost-rent",
-      "name": "Аренда",
-      "amount": 5000
+      "ид": "cost-rent",
+      "название": "Аренда",
+      "сумма": 5000
     },
     {
-      "id": "cost-salary",
-      "name": "Зарплата",
-      "amount": 12000
+      "ид": "cost-salary",
+      "название": "Зарплата",
+      "сумма": 12000
     }
   ],
-  "scenarios": {
-    "currentVolume": 10,
-    "workingDays": 22,
-    "s1": 30,
-    "s2": 70,
-    "s3": 150,
-    "exchangeRate": 9.4
+  "сценарии": {
+    "текущийОбъем": 10,
+    "рабочиеДни": 22,
+    "сценарий1": 30,
+    "сценарий2": 70,
+    "сценарий3": 150,
+    "курсUsdTjs": 9.4
   }
 }

@@ -8,13 +8,18 @@ import CombosTab from '../components/tabs/CombosTab';
 import CostsTab from '../components/tabs/CostsTab';
 import Dashboard from '../components/Dashboard';
 import HistoryTab from '../components/tabs/HistoryTab';
-import { useCalculatorStore } from '../store/useCalculatorStore';
+import ValidationTab from '../components/tabs/ValidationTab';
+import ValidationStatus from '../components/ValidationStatus';
+import { getCalculatorData, useCalculatorStore } from '../store/useCalculatorStore';
+import { validateCalculatorData } from '../utils/validation';
 
-type ActiveTab = 'ingredients' | 'dishes' | 'combos' | 'costs' | 'history';
+type ActiveTab = 'ingredients' | 'dishes' | 'combos' | 'costs' | 'validation' | 'history';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('ingredients');
-  const { isLoading, loadInitialData } = useCalculatorStore();
+  const state = useCalculatorStore();
+  const { isLoading, loadInitialData } = state;
+  const validationIssues = validateCalculatorData(getCalculatorData(state));
 
   useEffect(() => {
     void loadInitialData();
@@ -25,13 +30,21 @@ export default function Home() {
     { id: 'dishes', label: '02 Блюда' },
     { id: 'combos', label: '03 Комбо' },
     { id: 'costs', label: '04 Расходы и Объемы' },
-    { id: 'history', label: '05 История' }
+    { id: 'validation', label: `05 Проверка${validationIssues.length > 0 ? ` (${validationIssues.length})` : ''}` },
+    { id: 'history', label: '06 История' }
   ];
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         <Header />
+
+        {!isLoading && (
+          <ValidationStatus
+            issues={validationIssues}
+            onOpenValidation={() => setActiveTab('validation')}
+          />
+        )}
 
         <div className="flex space-x-2 border-b border-gray-200 overflow-x-auto no-scrollbar">
           {tabs.map((tab) => (
@@ -56,6 +69,7 @@ export default function Home() {
               {activeTab === 'dishes' && <DishesTab />}
               {activeTab === 'combos' && <CombosTab />}
               {activeTab === 'costs' && <CostsTab />}
+              {activeTab === 'validation' && <ValidationTab issues={validationIssues} />}
               {activeTab === 'history' && <HistoryTab />}
             </>
           )}
